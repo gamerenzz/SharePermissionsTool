@@ -9,24 +9,24 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    # 1. 升级到 checkout@v4
+    # 1. 代码拉取
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. 升级到 setup-dotnet@v4
+    # 2. 配置 .NET 8 SDK
     - name: Setup .NET 8
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
-    # 3. 编译单文件独立的 EXE
+    # 3. 编译极轻量单文件 EXE (--self-contained false)
     - name: Restore and Publish Single File EXE
       run: |
-        dotnet publish SharePermissionsTool.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o ./publish
+        dotnet publish SharePermissionsTool.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true -o ./publish
 
-    # 4. 升级到 upload-artifact@v4 (解决报错的关键)
+    # 4. 上传编译产物
     - name: Upload Built EXE Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: SharePermissionsTool_v4.0_Win64
+        name: SharePermissionsTool_v4.0_Lightweight
         path: ./publish/SharePermissionsTool.exe
