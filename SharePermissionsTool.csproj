@@ -7,11 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
 
-    <!-- 生成单文件 EXE -->
+    <!-- 方案一：生成极轻量级的单文件 EXE (体积约 2MB) -->
     <PublishSingleFile>true</PublishSingleFile>
-    <!-- 关闭自包含：使用目标机器系统的 .NET 环境 -->
     <SelfContained>false</SelfContained>
-    
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <!-- 自动请求管理员权限 -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
