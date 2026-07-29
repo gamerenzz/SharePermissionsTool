@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace SharePermissionsTool
@@ -156,8 +157,33 @@ namespace SharePermissionsTool
         #endregion
 
         #region 右键菜单与双击快捷打开/复制
-        private PermissionResult? GetSelectedPermissionResult()
+        // 右键自动选中当前鼠标下的行
+        private void DataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
+            DependencyObject dep = (DependencyObject)e.OriginalSource;
+            while (dep != null && dep is not DataGridRow)
+            {
+                dep = VisualTreeHelper.GetParent(dep);
+            }
+
+            if (dep is DataGridRow row)
+            {
+                row.IsSelected = true;
+                row.Focus();
+            }
+        }
+
+        // 精准获取当前点击的菜单所属的 DataGrid 选中项
+        private PermissionResult? GetSelectedPermissionResult(object sender)
+        {
+            if (sender is MenuItem menuItem)
+            {
+                if (menuItem.Parent is ContextMenu menu && menu.PlacementTarget is DataGrid dg)
+                {
+                    return dg.SelectedItem as PermissionResult;
+                }
+            }
+
             if (dgUserResults.SelectedItem is PermissionResult uItem) return uItem;
             if (dgShareResults.SelectedItem is PermissionResult sItem) return sItem;
             return null;
@@ -165,17 +191,21 @@ namespace SharePermissionsTool
 
         private void ContextMenu_CopyPath_Click(object sender, RoutedEventArgs e)
         {
-            var item = GetSelectedPermissionResult();
+            var item = GetSelectedPermissionResult(sender);
             if (item != null && !string.IsNullOrEmpty(item.Path))
             {
                 Clipboard.SetText(item.Path);
                 lblStatus.Text = $"已复制文件夹路径: {item.Path}";
             }
+            else
+            {
+                MessageBox.Show("未选中有效行或路径为空！");
+            }
         }
 
         private void ContextMenu_OpenFolder_Click(object sender, RoutedEventArgs e)
         {
-            var item = GetSelectedPermissionResult();
+            var item = GetSelectedPermissionResult(sender);
             if (item != null)
             {
                 OpenFolderInExplorer(item.Path);
@@ -184,7 +214,7 @@ namespace SharePermissionsTool
 
         private void ContextMenu_CopyRow_Click(object sender, RoutedEventArgs e)
         {
-            var item = GetSelectedPermissionResult();
+            var item = GetSelectedPermissionResult(sender);
             if (item != null)
             {
                 string rowText = $"{item.Account}\t{item.ShareName}\t{item.Path}\t{item.PermType}\t{item.AccessControlType}\t{item.Rights}";
