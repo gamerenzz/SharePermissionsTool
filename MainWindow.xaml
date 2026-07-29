@@ -62,7 +62,24 @@
                         </GroupBox>
                     </Grid>
 
-                    <DataGrid Name="dgUserResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="All">
+                    <!-- 支持选择、双击打开文件夹与右键复制菜单 -->
+                    <DataGrid Name="dgUserResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
+                              GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="CellOrRowHeader"
+                              ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="ContextMenu">
+                                    <Setter.Value>
+                                        <ContextMenu>
+                                            <MenuItem Header="📁 复制文件夹路径" Click="ContextMenu_CopyPath_Click"/>
+                                            <MenuItem Header="🚀 在资源管理器中打开" Click="ContextMenu_OpenFolder_Click"/>
+                                            <Separator/>
+                                            <MenuItem Header="📋 复制整行数据" Click="ContextMenu_CopyRow_Click"/>
+                                        </ContextMenu>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="匹配账号" Binding="{Binding Account}" Width="160"/>
                             <DataGridTextColumn Header="共享根名称" Binding="{Binding ShareName}" Width="110"/>
@@ -105,7 +122,24 @@
                         </Grid>
                     </GroupBox>
 
-                    <DataGrid Name="dgShareResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="All">
+                    <!-- 支持选择、双击打开文件夹与右键复制菜单 -->
+                    <DataGrid Name="dgShareResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
+                              GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="CellOrRowHeader"
+                              ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="ContextMenu">
+                                    <Setter.Value>
+                                        <ContextMenu>
+                                            <MenuItem Header="📁 复制文件夹路径" Click="ContextMenu_CopyPath_Click"/>
+                                            <MenuItem Header="🚀 在资源管理器中打开" Click="ContextMenu_OpenFolder_Click"/>
+                                            <Separator/>
+                                            <MenuItem Header="📋 复制整行数据" Click="ContextMenu_CopyRow_Click"/>
+                                        </ContextMenu>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="文件夹路径" Binding="{Binding Path}" Width="280"/>
                             <DataGridTextColumn Header="用户/组 账号" Binding="{Binding Account}" Width="240"/>
@@ -121,7 +155,7 @@
         <!-- 底部状态栏与进度更新 -->
         <StatusBar Grid.Row="1" Margin="0,5,0,0">
             <StatusBarItem>
-                <TextBlock Name="lblStatus" Text="就绪" Foreground="Blue"/>
+                <TextBlock Name="lblStatus" Text="就绪 (提示：右键结果列表可复制路径或打开文件夹，双击某行也可直接打开)" Foreground="Blue"/>
             </StatusBarItem>
         </StatusBar>
     </Grid>
