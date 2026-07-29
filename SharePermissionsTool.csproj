@@ -4,18 +4,14 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
-
-    <!-- 解决编码和中文乱码 -->
-    <AssemblyEncoding>UTF-8</AssemblyEncoding>
-
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <!-- 生成单文件 EXE 配置 -->
+
+    <!-- 生成单文件 EXE -->
     <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <!-- 自动请求管理员权限 -->
+    <!-- 关闭自包含：使用目标机器系统的 .NET 环境 -->
+    <SelfContained>false</SelfContained>
+    
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
