@@ -156,21 +156,27 @@ namespace SharePermissionsTool
         #endregion
 
         #region 右键菜单与双击快捷打开/复制
+        private PermissionResult? GetSelectedPermissionResult()
+        {
+            if (dgUserResults.SelectedItem is PermissionResult uItem) return uItem;
+            if (dgShareResults.SelectedItem is PermissionResult sItem) return sItem;
+            return null;
+        }
+
         private void ContextMenu_CopyPath_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.DataContext is PermissionResult item)
+            var item = GetSelectedPermissionResult();
+            if (item != null && !string.IsNullOrEmpty(item.Path))
             {
-                if (!string.IsNullOrEmpty(item.Path))
-                {
-                    Clipboard.SetText(item.Path);
-                    lblStatus.Text = $"已复制文件夹路径: {item.Path}";
-                }
+                Clipboard.SetText(item.Path);
+                lblStatus.Text = $"已复制文件夹路径: {item.Path}";
             }
         }
 
         private void ContextMenu_OpenFolder_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.DataContext is PermissionResult item)
+            var item = GetSelectedPermissionResult();
+            if (item != null)
             {
                 OpenFolderInExplorer(item.Path);
             }
@@ -178,7 +184,8 @@ namespace SharePermissionsTool
 
         private void ContextMenu_CopyRow_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.DataContext is PermissionResult item)
+            var item = GetSelectedPermissionResult();
+            if (item != null)
             {
                 string rowText = $"{item.Account}\t{item.ShareName}\t{item.Path}\t{item.PermType}\t{item.AccessControlType}\t{item.Rights}";
                 Clipboard.SetText(rowText);
@@ -411,7 +418,6 @@ namespace SharePermissionsTool
             var cleanList = new List<string>();
             foreach (var r in list.Distinct())
             {
-                // 自动翻译未识别的数值位（如 268435456、-1610612 等）
                 if (int.TryParse(r, out int val) || (r.StartsWith("-") && int.TryParse(r, out _)))
                 {
                     cleanList.Add("特殊扩展权限 (Special Rights)");
