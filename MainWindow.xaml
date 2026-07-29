@@ -62,10 +62,11 @@
                         </GroupBox>
                     </Grid>
 
-                    <!-- DataGrid 页签 1 -->
+                    <!-- DataGrid 页签 1 (增加右键自动选中与快捷功能) -->
                     <DataGrid Name="dgUserResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
-                              GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="CellOrRowHeader"
-                              ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick">
+                              GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="FullRow"
+                              ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick"
+                              PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown">
                         <DataGrid.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="📁 复制文件夹路径" Click="ContextMenu_CopyPath_Click"/>
@@ -116,10 +117,11 @@
                         </Grid>
                     </GroupBox>
 
-                    <!-- DataGrid 页签 2 -->
+                    <!-- DataGrid 页签 2 (增加右键自动选中与快捷功能) -->
                     <DataGrid Name="dgShareResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
-                              GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="CellOrRowHeader"
-                              ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick">
+                              GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="FullRow"
+                              ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick"
+                              PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown">
                         <DataGrid.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="📁 复制文件夹路径" Click="ContextMenu_CopyPath_Click"/>
