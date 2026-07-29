@@ -39,13 +39,6 @@ namespace SharePermissionsTool
         }
 
         #region 数据模型
-        public class CheckItem
-        {
-            public string Name { get; set; } = "";
-            public string Tag { get; set; } = "";
-            public bool IsChecked { get; set; } = true;
-        }
-
         public class ShareInfo
         {
             public string Name { get; set; } = "";
@@ -74,7 +67,7 @@ namespace SharePermissionsTool
                 {
                     string name = user["Name"]?.ToString() ?? "";
                     if (!string.IsNullOrEmpty(name))
-                        lstTargetUsers.Items.Add(new CheckBox { Content = $"[用户] {name}", Tag = name, IsMargin = "2" });
+                        lstTargetUsers.Items.Add(new CheckBox { Content = $"[用户] {name}", Tag = name, Margin = new Thickness(2) });
                 }
 
                 using var groupSearcher = new ManagementObjectSearcher("SELECT Name FROM Win32_Group WHERE LocalAccount=True");
@@ -82,7 +75,7 @@ namespace SharePermissionsTool
                 {
                     string name = group["Name"]?.ToString() ?? "";
                     if (!string.IsNullOrEmpty(name))
-                        lstTargetUsers.Items.Add(new CheckBox { Content = $"[组] {name}", Tag = name, IsMargin = "2" });
+                        lstTargetUsers.Items.Add(new CheckBox { Content = $"[组] {name}", Tag = name, Margin = new Thickness(2) });
                 }
             }
             catch (Exception ex) { MessageBox.Show("加载本地账号失败: " + ex.Message); }
@@ -116,8 +109,8 @@ namespace SharePermissionsTool
 
             foreach (var s in shares)
             {
-                lstUserShares.Items.Add(new CheckBox { Content = s.Name, Tag = s.Path, IsChecked = true });
-                lstShareTabShares.Items.Add(new CheckBox { Content = s.Name, Tag = s.Path, IsChecked = true });
+                lstUserShares.Items.Add(new CheckBox { Content = s.Name, Tag = s.Path, IsChecked = true, Margin = new Thickness(2) });
+                lstShareTabShares.Items.Add(new CheckBox { Content = s.Name, Tag = s.Path, IsChecked = true, Margin = new Thickness(2) });
             }
         }
         #endregion
@@ -199,8 +192,8 @@ namespace SharePermissionsTool
 
                 if (!Directory.Exists(share.Path)) continue;
 
-                // 递归安全获取所有目录 (避免权限不足崩掉)
-                var options = new EnumerationOptions
+                // 明确使用 System.IO.EnumerationOptions 避免歧义
+                var options = new System.IO.EnumerationOptions
                 {
                     IgnoreInaccessible = true,
                     RecurseSubdirectories = true,
@@ -243,7 +236,7 @@ namespace SharePermissionsTool
                             }
                         }
                     }
-                    catch { } // 忽略单个文件夹权限异常
+                    catch { }
                 }
             }
             return results;
@@ -286,7 +279,8 @@ namespace SharePermissionsTool
 
                 if (!Directory.Exists(share.Path)) continue;
 
-                var options = new EnumerationOptions
+                // 明确使用 System.IO.EnumerationOptions 避免歧义
+                var options = new System.IO.EnumerationOptions
                 {
                     IgnoreInaccessible = true,
                     RecurseSubdirectories = true,
@@ -308,7 +302,7 @@ namespace SharePermissionsTool
                         bool isRoot = folder.TrimEnd('\\').Equals(share.Path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
                         var dirInfo = new DirectoryInfo(folder);
                         var acl = dirInfo.GetAccessControl(AccessControlSections.Access);
-                        var rules = acl.GetAccessRules(true, false, typeof(NTAccount)); // 仅显式权限
+                        var rules = acl.GetAccessRules(true, false, typeof(NTAccount)); // 仅非继承权限
 
                         foreach (FileSystemAccessRule rule in rules)
                         {
