@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.Win32;
 
 namespace SharePermissionsTool
@@ -154,6 +155,65 @@ namespace SharePermissionsTool
         }
         #endregion
 
+        #region 右键菜单与双击快捷打开/复制
+        private void ContextMenu_CopyPath_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.DataContext is PermissionResult item)
+            {
+                if (!string.IsNullOrEmpty(item.Path))
+                {
+                    Clipboard.SetText(item.Path);
+                    lblStatus.Text = $"已复制文件夹路径: {item.Path}";
+                }
+            }
+        }
+
+        private void ContextMenu_OpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.DataContext is PermissionResult item)
+            {
+                OpenFolderInExplorer(item.Path);
+            }
+        }
+
+        private void ContextMenu_CopyRow_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.DataContext is PermissionResult item)
+            {
+                string rowText = $"{item.Account}\t{item.ShareName}\t{item.Path}\t{item.PermType}\t{item.AccessControlType}\t{item.Rights}";
+                Clipboard.SetText(rowText);
+                lblStatus.Text = "已复制整行数据到剪贴板。";
+            }
+        }
+
+        private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is DataGrid dg && dg.SelectedItem is PermissionResult item)
+            {
+                OpenFolderInExplorer(item.Path);
+            }
+        }
+
+        private void OpenFolderInExplorer(string path)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                {
+                    Process.Start("explorer.exe", path);
+                }
+                else
+                {
+                    MessageBox.Show("该文件夹不存在或无法访问！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("无法打开资源管理器: " + ex.Message);
+            }
+        }
+        #endregion
+
         #region 异步查询 1：按用户/组查询
         private async void BtnSearchByUser_Click(object sender, RoutedEventArgs e)
         {
@@ -192,7 +252,6 @@ namespace SharePermissionsTool
 
                 if (!Directory.Exists(share.Path)) continue;
 
-                // 明确使用 System.IO.EnumerationOptions 避免歧义
                 var options = new System.IO.EnumerationOptions
                 {
                     IgnoreInaccessible = true,
@@ -214,7 +273,7 @@ namespace SharePermissionsTool
                     {
                         var dirInfo = new DirectoryInfo(folder);
                         var acl = dirInfo.GetAccessControl(AccessControlSections.Access);
-                        var rules = acl.GetAccessRules(true, false, typeof(NTAccount)); // 只提取非继承权限
+                        var rules = acl.GetAccessRules(true, false, typeof(NTAccount)); // 仅非继承权限
 
                         foreach (FileSystemAccessRule rule in rules)
                         {
@@ -279,7 +338,6 @@ namespace SharePermissionsTool
 
                 if (!Directory.Exists(share.Path)) continue;
 
-                // 明确使用 System.IO.EnumerationOptions 避免歧义
                 var options = new System.IO.EnumerationOptions
                 {
                     IgnoreInaccessible = true,
@@ -330,7 +388,7 @@ namespace SharePermissionsTool
         }
         #endregion
 
-        #region 数据去重与清洗
+        #region 数据去重与权限文本清洗
         private List<PermissionResult> DeduplicateResults(List<PermissionResult> raw)
         {
             return raw.GroupBy(r => new { r.Path, r.Account, r.PermType, r.AccessControlType })
@@ -349,7 +407,21 @@ namespace SharePermissionsTool
         {
             var list = rights.ToList();
             if (list.Any(r => r.Contains("FullControl"))) return "FullControl";
-            return string.Join(", ", list.Distinct());
+
+            var cleanList = new List<string>();
+            foreach (var r in list.Distinct())
+            {
+                // 自动翻译未识别的数值位（如 268435456、-1610612 等）
+                if (int.TryParse(r, out int val) || (r.StartsWith("-") && int.TryParse(r, out _)))
+                {
+                    cleanList.Add("特殊扩展权限 (Special Rights)");
+                }
+                else
+                {
+                    cleanList.Add(r);
+                }
+            }
+            return string.Join(", ", cleanList.Distinct());
         }
 
         private void ToggleUI(bool isEnabled)
