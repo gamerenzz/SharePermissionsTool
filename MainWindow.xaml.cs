@@ -21,17 +21,6 @@ namespace SharePermissionsTool
     {
         private CancellationTokenSource? _cts;
 
-        // 系统内置黑名单
-        private static readonly HashSet<string> SystemBuiltInAccounts = new(StringComparer.OrdinalIgnoreCase)
-        {
-            @"NT AUTHORITY\SYSTEM",
-            @"NT AUTHORITY\Authenticated Users",
-            @"NT AUTHORITY\INTERACTIVE",
-            @"BUILTIN\Administrators",
-            @"BUILTIN\Users",
-            @"CREATOR OWNER"
-        };
-
         public MainWindow()
         {
             InitializeComponent();
@@ -53,8 +42,44 @@ namespace SharePermissionsTool
             public string ShareName { get; set; } = "";
             public string Path { get; set; } = "";
             public string PermType { get; set; } = ""; // SMB 或 NTFS
+            public string InheritanceStatus { get; set; } = ""; // 直接授权 或 继承
             public string AccessControlType { get; set; } = "";
+            
+            // 细分权限展示标志
+            public bool Read { get; set; }
+            public bool Write { get; set; }
+            public bool Modify { get; set; }
+            public bool Delete { get; set; }
+            public bool FullControl { get; set; }
+
+            public string ReadStr => Read ? "√" : "-";
+            public string WriteStr => Write ? "√" : "-";
+            public string ModifyStr => Modify ? "√" : "-";
+            public string DeleteStr => Delete ? "√" : "-";
+            public string FullControlStr => FullControl ? "√" : "-";
+
             public string Rights { get; set; } = "";
+        }
+        #endregion
+
+        #region 系统账号判断过滤
+        private static bool IsSystemAccount(string account)
+        {
+            if (string.IsNullOrWhiteSpace(account)) return false;
+
+            string clean = account.ToUpperInvariant();
+            if (clean.StartsWith(@"NT SERVICE\") || clean.StartsWith(@"NT AUTHORITY\"))
+                return true;
+
+            string[] blackList = {
+                @"BUILTIN\ADMINISTRATORS",
+                @"BUILTIN\USERS",
+                @"CREATOR OWNER",
+                @"TRUSTEDINSTALLER",
+                @"SYSTEM"
+            };
+
+            return blackList.Any(b => clean.Equals(b) || clean.EndsWith(@"\" + b));
         }
         #endregion
 
@@ -157,7 +182,6 @@ namespace SharePermissionsTool
         #endregion
 
         #region 右键菜单与双击快捷打开/复制
-        // 右键自动选中当前鼠标下的行
         private void DataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
             DependencyObject dep = (DependencyObject)e.OriginalSource;
@@ -173,7 +197,6 @@ namespace SharePermissionsTool
             }
         }
 
-        // 精准获取当前点击的菜单所属的 DataGrid 选中项
         private PermissionResult? GetSelectedPermissionResult(object sender)
         {
             if (sender is MenuItem menuItem)
@@ -197,10 +220,6 @@ namespace SharePermissionsTool
                 Clipboard.SetText(item.Path);
                 lblStatus.Text = $"已复制文件夹路径: {item.Path}";
             }
-            else
-            {
-                MessageBox.Show("未选中有效行或路径为空！");
-            }
         }
 
         private void ContextMenu_OpenFolder_Click(object sender, RoutedEventArgs e)
@@ -217,7 +236,7 @@ namespace SharePermissionsTool
             var item = GetSelectedPermissionResult(sender);
             if (item != null)
             {
-                string rowText = $"{item.Account}\t{item.ShareName}\t{item.Path}\t{item.PermType}\t{item.AccessControlType}\t{item.Rights}";
+                string rowText = $"{item.Account}\t{item.ShareName}\t{item.Path}\t{item.PermType}\t{item.InheritanceStatus}\t{item.AccessControlType}\t{item.ReadStr}\t{item.WriteStr}\t{item.ModifyStr}\t{item.DeleteStr}\t{item.FullControlStr}\t{item.Rights}";
                 Clipboard.SetText(rowText);
                 lblStatus.Text = "已复制整行数据到剪贴板。";
             }
@@ -251,11 +270,50 @@ namespace SharePermissionsTool
         }
         #endregion
 
+        #region 权限位细分解析逻辑
+        private static void ParseRights(FileSystemRights rights, PermissionResult result)
+        {
+            if ((rights & FileSystemRights.FullControl) == FileSystemRights.FullControl)
+            {
+                result.FullControl = true;
+                result.Modify = true;
+                result.Read = true;
+                result.Write = true;
+                result.Delete = true;
+                return;
+            }
+
+            if ((rights & FileSystemRights.Modify) == FileSystemRights.Modify)
+            {
+                result.Modify = true;
+                result.Read = true;
+                result.Write = true;
+                result.Delete = true;
+            }
+
+            if ((rights & (FileSystemRights.ReadData | FileSystemRights.ReadAndExecute | FileSystemRights.Read)) != 0)
+            {
+                result.Read = true;
+            }
+
+            if ((rights & (FileSystemRights.WriteData | FileSystemRights.Write | FileSystemRights.AppendData)) != 0)
+            {
+                result.Write = true;
+            }
+
+            if ((rights & (FileSystemRights.Delete | FileSystemRights.DeleteSubdirectoriesAndFiles)) != 0)
+            {
+                result.Delete = true;
+            }
+        }
+        #endregion
+
         #region 异步查询 1：按用户/组查询
         private async void BtnSearchByUser_Click(object sender, RoutedEventArgs e)
         {
             var selectedUsers = GetCheckedTags(lstTargetUsers);
             var selectedShares = GetCheckedShares(lstUserShares);
+            bool showSystem = chkShowSystemTab1.IsChecked == true;
 
             if (!selectedUsers.Any() || !selectedShares.Any())
             {
@@ -269,7 +327,7 @@ namespace SharePermissionsTool
 
             try
             {
-                var rawResults = await Task.Run(() => ScanPermissionsByUser(selectedUsers, selectedShares, _cts.Token, progress));
+                var rawResults = await Task.Run(() => ScanPermissionsByUser(selectedUsers, selectedShares, showSystem, _cts.Token, progress));
                 dgUserResults.ItemsSource = DeduplicateResults(rawResults);
                 lblStatus.Text = $"查询完成，共找到 {dgUserResults.Items.Count} 条记录。";
             }
@@ -278,7 +336,7 @@ namespace SharePermissionsTool
             finally { ToggleUI(true); }
         }
 
-        private List<PermissionResult> ScanPermissionsByUser(List<string> targetUsers, List<ShareInfo> shares, CancellationToken token, IProgress<string> progress)
+        private List<PermissionResult> ScanPermissionsByUser(List<string> targetUsers, List<ShareInfo> shares, bool showSystem, CancellationToken token, IProgress<string> progress)
         {
             var results = new List<PermissionResult>();
 
@@ -310,25 +368,33 @@ namespace SharePermissionsTool
                     {
                         var dirInfo = new DirectoryInfo(folder);
                         var acl = dirInfo.GetAccessControl(AccessControlSections.Access);
-                        var rules = acl.GetAccessRules(true, false, typeof(NTAccount)); // 仅非继承权限
+                        
+                        // 同时获取“直接”和“继承”权限，以便展示继承状态
+                        var rules = acl.GetAccessRules(true, true, typeof(NTAccount));
 
                         foreach (FileSystemAccessRule rule in rules)
                         {
                             string account = rule.IdentityReference.Value;
                             string shortAccount = account.Contains('\\') ? account.Split('\\')[1] : account;
 
+                            if (!showSystem && IsSystemAccount(account))
+                                continue;
+
                             if (targetUsers.Contains(shortAccount, StringComparer.OrdinalIgnoreCase) ||
                                 targetUsers.Contains(account, StringComparer.OrdinalIgnoreCase))
                             {
-                                results.Add(new PermissionResult
+                                var item = new PermissionResult
                                 {
                                     Account = account,
                                     ShareName = share.Name,
                                     Path = folder,
                                     PermType = "NTFS 权限",
+                                    InheritanceStatus = rule.IsInherited ? "继承" : "直接",
                                     AccessControlType = rule.AccessControlType.ToString(),
                                     Rights = rule.FileSystemRights.ToString()
-                                });
+                                };
+                                ParseRights(rule.FileSystemRights, item);
+                                results.Add(item);
                             }
                         }
                     }
@@ -343,6 +409,8 @@ namespace SharePermissionsTool
         private async void BtnSearchByShare_Click(object sender, RoutedEventArgs e)
         {
             var selectedShares = GetCheckedShares(lstShareTabShares);
+            bool showSystem = chkShowSystemTab2.IsChecked == true;
+
             if (!selectedShares.Any())
             {
                 MessageBox.Show("请至少选择一个共享文件夹！");
@@ -355,7 +423,7 @@ namespace SharePermissionsTool
 
             try
             {
-                var rawResults = await Task.Run(() => ScanPermissionsByShare(selectedShares, _cts.Token, progress));
+                var rawResults = await Task.Run(() => ScanPermissionsByShare(selectedShares, showSystem, _cts.Token, progress));
                 dgShareResults.ItemsSource = DeduplicateResults(rawResults);
                 lblStatus.Text = $"查询完成，共找到 {dgShareResults.Items.Count} 条记录。";
             }
@@ -364,7 +432,7 @@ namespace SharePermissionsTool
             finally { ToggleUI(true); }
         }
 
-        private List<PermissionResult> ScanPermissionsByShare(List<ShareInfo> shares, CancellationToken token, IProgress<string> progress)
+        private List<PermissionResult> ScanPermissionsByShare(List<ShareInfo> shares, bool showSystem, CancellationToken token, IProgress<string> progress)
         {
             var results = new List<PermissionResult>();
 
@@ -394,28 +462,32 @@ namespace SharePermissionsTool
                     token.ThrowIfCancellationRequested();
                     try
                     {
-                        bool isRoot = folder.TrimEnd('\\').Equals(share.Path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
                         var dirInfo = new DirectoryInfo(folder);
                         var acl = dirInfo.GetAccessControl(AccessControlSections.Access);
-                        var rules = acl.GetAccessRules(true, false, typeof(NTAccount)); // 仅非继承权限
+                        
+                        // 同时读取直接与继承权限
+                        var rules = acl.GetAccessRules(true, true, typeof(NTAccount));
 
                         foreach (FileSystemAccessRule rule in rules)
                         {
                             string account = rule.IdentityReference.Value;
 
-                            // 过滤黑名单
-                            if (!isRoot && SystemBuiltInAccounts.Contains(account))
+                            // 默认过滤系统账号黑名单
+                            if (!showSystem && IsSystemAccount(account))
                                 continue;
 
-                            results.Add(new PermissionResult
+                            var item = new PermissionResult
                             {
                                 Account = account,
                                 ShareName = share.Name,
                                 Path = folder,
                                 PermType = "NTFS 权限",
+                                InheritanceStatus = rule.IsInherited ? "继承" : "直接",
                                 AccessControlType = rule.AccessControlType.ToString(),
                                 Rights = rule.FileSystemRights.ToString()
-                            });
+                            };
+                            ParseRights(rule.FileSystemRights, item);
+                            results.Add(item);
                         }
                     }
                     catch { }
@@ -428,15 +500,25 @@ namespace SharePermissionsTool
         #region 数据去重与权限文本清洗
         private List<PermissionResult> DeduplicateResults(List<PermissionResult> raw)
         {
-            return raw.GroupBy(r => new { r.Path, r.Account, r.PermType, r.AccessControlType })
-                .Select(g => new PermissionResult
+            return raw.GroupBy(r => new { r.Path, r.Account, r.PermType, r.InheritanceStatus, r.AccessControlType })
+                .Select(g =>
                 {
-                    Account = g.Key.Account,
-                    ShareName = g.First().ShareName,
-                    Path = g.Key.Path,
-                    PermType = g.Key.PermType,
-                    AccessControlType = g.Key.AccessControlType,
-                    Rights = CleanRightsString(g.Select(x => x.Rights))
+                    var first = g.First();
+                    return new PermissionResult
+                    {
+                        Account = first.Account,
+                        ShareName = first.ShareName,
+                        Path = first.Path,
+                        PermType = first.PermType,
+                        InheritanceStatus = first.InheritanceStatus,
+                        AccessControlType = first.AccessControlType,
+                        Read = g.Any(x => x.Read),
+                        Write = g.Any(x => x.Write),
+                        Modify = g.Any(x => x.Modify),
+                        Delete = g.Any(x => x.Delete),
+                        FullControl = g.Any(x => x.FullControl),
+                        Rights = CleanRightsString(g.Select(x => x.Rights))
+                    };
                 }).ToList();
         }
 
@@ -448,9 +530,9 @@ namespace SharePermissionsTool
             var cleanList = new List<string>();
             foreach (var r in list.Distinct())
             {
-                if (int.TryParse(r, out int val) || (r.StartsWith("-") && int.TryParse(r, out _)))
+                if (int.TryParse(r, out _) || (r.StartsWith("-") && int.TryParse(r, out _)))
                 {
-                    cleanList.Add("特殊扩展权限 (Special Rights)");
+                    cleanList.Add("特殊扩展权限");
                 }
                 else
                 {
@@ -492,10 +574,10 @@ namespace SharePermissionsTool
                 try
                 {
                     var sb = new StringBuilder();
-                    sb.AppendLine("匹配账号,共享根名称,实际路径,权限来源,访问类型,详细权限");
+                    sb.AppendLine("匹配账号,共享根名称,实际路径,权限来源,继承状态,访问控制,读取,写入,修改,删除,完全控制,原始权限描述");
                     foreach (var item in items)
                     {
-                        sb.AppendLine($"\"{item.Account}\",\"{item.ShareName}\",\"{item.Path}\",\"{item.PermType}\",\"{item.AccessControlType}\",\"{item.Rights}\"");
+                        sb.AppendLine($"\"{item.Account}\",\"{item.ShareName}\",\"{item.Path}\",\"{item.PermType}\",\"{item.InheritanceStatus}\",\"{item.AccessControlType}\",\"{item.ReadStr}\",\"{item.WriteStr}\",\"{item.ModifyStr}\",\"{item.DeleteStr}\",\"{item.FullControlStr}\",\"{item.Rights}\"");
                     }
                     File.WriteAllText(dialog.FileName, sb.ToString(), Encoding.UTF8);
                     MessageBox.Show("导出成功！\n路径: " + dialog.FileName);
