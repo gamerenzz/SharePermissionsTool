@@ -41,11 +41,10 @@ namespace SharePermissionsTool
             public string Account { get; set; } = "";
             public string ShareName { get; set; } = "";
             public string Path { get; set; } = "";
-            public string PermType { get; set; } = ""; // SMB 或 NTFS
-            public string InheritanceStatus { get; set; } = ""; // 直接授权 或 继承
+            public string PermType { get; set; } = ""; 
+            public string InheritanceStatus { get; set; } = ""; 
             public string AccessControlType { get; set; } = "";
             
-            // 细分权限展示标志
             public bool Read { get; set; }
             public bool Write { get; set; }
             public bool Modify { get; set; }
@@ -314,6 +313,7 @@ namespace SharePermissionsTool
             var selectedUsers = GetCheckedTags(lstTargetUsers);
             var selectedShares = GetCheckedShares(lstUserShares);
             bool showSystem = chkShowSystemTab1.IsChecked == true;
+            bool includePureInherited = chkIncludeInheritedTab1.IsChecked == true;
 
             if (!selectedUsers.Any() || !selectedShares.Any())
             {
@@ -327,7 +327,7 @@ namespace SharePermissionsTool
 
             try
             {
-                var rawResults = await Task.Run(() => ScanPermissionsByUser(selectedUsers, selectedShares, showSystem, _cts.Token, progress));
+                var rawResults = await Task.Run(() => ScanPermissionsByUser(selectedUsers, selectedShares, showSystem, includePureInherited, _cts.Token, progress));
                 dgUserResults.ItemsSource = DeduplicateResults(rawResults);
                 lblStatus.Text = $"查询完成，共找到 {dgUserResults.Items.Count} 条记录。";
             }
@@ -336,7 +336,7 @@ namespace SharePermissionsTool
             finally { ToggleUI(true); }
         }
 
-        private List<PermissionResult> ScanPermissionsByUser(List<string> targetUsers, List<ShareInfo> shares, bool showSystem, CancellationToken token, IProgress<string> progress)
+        private List<PermissionResult> ScanPermissionsByUser(List<string> targetUsers, List<ShareInfo> shares, bool showSystem, bool includePureInherited, CancellationToken token, IProgress<string> progress)
         {
             var results = new List<PermissionResult>();
 
@@ -366,14 +366,18 @@ namespace SharePermissionsTool
                     token.ThrowIfCancellationRequested();
                     try
                     {
+                        bool isRoot = folder.TrimEnd('\\').Equals(share.Path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
                         var dirInfo = new DirectoryInfo(folder);
                         var acl = dirInfo.GetAccessControl(AccessControlSections.Access);
                         
-                        // 同时获取“直接”和“继承”权限，以便展示继承状态
                         var rules = acl.GetAccessRules(true, true, typeof(NTAccount));
 
                         foreach (FileSystemAccessRule rule in rules)
                         {
+                            // 智能精简过滤：如果是子文件夹且权限完全是继承来的，且没勾选“包含纯继承”，则跳过！
+                            if (!includePureInherited && !isRoot && rule.IsInherited)
+                                continue;
+
                             string account = rule.IdentityReference.Value;
                             string shortAccount = account.Contains('\\') ? account.Split('\\')[1] : account;
 
@@ -410,6 +414,7 @@ namespace SharePermissionsTool
         {
             var selectedShares = GetCheckedShares(lstShareTabShares);
             bool showSystem = chkShowSystemTab2.IsChecked == true;
+            bool includePureInherited = chkIncludeInheritedTab2.IsChecked == true;
 
             if (!selectedShares.Any())
             {
@@ -423,7 +428,7 @@ namespace SharePermissionsTool
 
             try
             {
-                var rawResults = await Task.Run(() => ScanPermissionsByShare(selectedShares, showSystem, _cts.Token, progress));
+                var rawResults = await Task.Run(() => ScanPermissionsByShare(selectedShares, showSystem, includePureInherited, _cts.Token, progress));
                 dgShareResults.ItemsSource = DeduplicateResults(rawResults);
                 lblStatus.Text = $"查询完成，共找到 {dgShareResults.Items.Count} 条记录。";
             }
@@ -432,7 +437,7 @@ namespace SharePermissionsTool
             finally { ToggleUI(true); }
         }
 
-        private List<PermissionResult> ScanPermissionsByShare(List<ShareInfo> shares, bool showSystem, CancellationToken token, IProgress<string> progress)
+        private List<PermissionResult> ScanPermissionsByShare(List<ShareInfo> shares, bool showSystem, bool includePureInherited, CancellationToken token, IProgress<string> progress)
         {
             var results = new List<PermissionResult>();
 
@@ -462,14 +467,18 @@ namespace SharePermissionsTool
                     token.ThrowIfCancellationRequested();
                     try
                     {
+                        bool isRoot = folder.TrimEnd('\\').Equals(share.Path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
                         var dirInfo = new DirectoryInfo(folder);
                         var acl = dirInfo.GetAccessControl(AccessControlSections.Access);
                         
-                        // 同时读取直接与继承权限
                         var rules = acl.GetAccessRules(true, true, typeof(NTAccount));
 
                         foreach (FileSystemAccessRule rule in rules)
                         {
+                            // 智能精简过滤：如果是子文件夹且权限完全是继承来的，且没勾选“包含纯继承”，则跳过！
+                            if (!includePureInherited && !isRoot && rule.IsInherited)
+                                continue;
+
                             string account = rule.IdentityReference.Value;
 
                             // 默认过滤系统账号黑名单
