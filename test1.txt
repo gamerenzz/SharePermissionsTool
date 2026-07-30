@@ -1,0 +1,1 @@
+windows 共享与NTFS 权限查询工具
