@@ -1,7 +1,7 @@
 <Window x:Class="SharePermissionsTool.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Windows 共享与 NTFS 权限查询工具 (C# 高能版 v5.0)" Height="780" Width="1150" WindowStartupLocation="CenterScreen">
+        Title="Windows 共享与 NTFS 权限查询工具 (C# 高能版 v5.1)" Height="780" Width="1150" WindowStartupLocation="CenterScreen">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
@@ -20,11 +20,14 @@
 
                     <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
                         <TextBlock Text="本机/域名:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <TextBox Name="txtDomain" Width="130" IsReadOnly="True" Background="#F0F0F0" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                        <TextBox Name="txtDomain" Width="120" IsReadOnly="True" Background="#F0F0F0" VerticalAlignment="Center" Margin="0,0,15,0"/>
                         
                         <CheckBox Name="chkShowSystemTab1" Content="显示系统账号" VerticalAlignment="Center" Margin="0,0,15,0"
-                                  ToolTip="勾选后将显示 SYSTEM, Administrators, CREATOR OWNER 等系统账号"/>
+                                  ToolTip="勾选后将显示 SYSTEM, Administrators 等系统账号"/>
                         
+                        <CheckBox Name="chkIncludeInheritedTab1" Content="包含纯继承子文件夹" VerticalAlignment="Center" Margin="0,0,15,0"
+                                  ToolTip="取消勾选时，仅展示【共享根目录】与【单独设置了直接权限的子文件夹】，大幅去重"/>
+
                         <Button Name="btnSearchByUser" Content=" 开始查询权限 " Padding="12,5" Margin="0,0,10,0" FontWeight="Bold" Click="BtnSearchByUser_Click"/>
                         <Button Name="btnCancelUser" Content=" 停止 " Padding="10,5" Margin="0,0,10,0" IsEnabled="False" Click="BtnCancel_Click"/>
                         <Button Name="btnExportUser" Content=" 导出结果 (CSV) " Padding="10,5" Click="BtnExportUser_Click"/>
@@ -66,7 +69,6 @@
                         </GroupBox>
                     </Grid>
 
-                    <!-- DataGrid 页签 1 (新增继承列与权限细分列) -->
                     <DataGrid Name="dgUserResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
                               GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="FullRow"
                               ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick"
@@ -87,7 +89,6 @@
                             <DataGridTextColumn Header="继承" Binding="{Binding InheritanceStatus}" Width="70"/>
                             <DataGridTextColumn Header="类型" Binding="{Binding AccessControlType}" Width="65"/>
                             
-                            <!-- 权限细分列 -->
                             <DataGridTextColumn Header="读取" Binding="{Binding ReadStr}" Width="50"/>
                             <DataGridTextColumn Header="写入" Binding="{Binding WriteStr}" Width="50"/>
                             <DataGridTextColumn Header="修改" Binding="{Binding ModifyStr}" Width="50"/>
@@ -110,8 +111,12 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
-                        <CheckBox Name="chkShowSystemTab2" Content="显示系统账号" VerticalAlignment="Center" Margin="0,0,20,0"
-                                  ToolTip="勾选后将显示 SYSTEM, Administrators, CREATOR OWNER 等系统账号"/>
+                        <CheckBox Name="chkShowSystemTab2" Content="显示系统账号" VerticalAlignment="Center" Margin="0,0,15,0"
+                                  ToolTip="勾选后将显示 SYSTEM, Administrators 等系统账号"/>
+                        
+                        <CheckBox Name="chkIncludeInheritedTab2" Content="包含纯继承子文件夹" VerticalAlignment="Center" Margin="0,0,15,0"
+                                  ToolTip="取消勾选时，仅展示【共享根目录】与【单独设置了直接权限的子文件夹】，大幅去重"/>
+
                         <Button Name="btnSearchByShare" Content=" 查询共享的用户 " Padding="12,5" Margin="0,0,10,0" FontWeight="Bold" Click="BtnSearchByShare_Click"/>
                         <Button Name="btnCancelShare" Content=" 停止 " Padding="10,5" Margin="0,0,10,0" IsEnabled="False" Click="BtnCancel_Click"/>
                         <Button Name="btnExportShare" Content=" 导出结果 (CSV) " Padding="10,5" Click="BtnExportShare_Click"/>
@@ -132,7 +137,6 @@
                         </Grid>
                     </GroupBox>
 
-                    <!-- DataGrid 页签 2 (新增继承列与权限细分列) -->
                     <DataGrid Name="dgShareResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
                               GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="FullRow"
                               ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick"
@@ -152,7 +156,6 @@
                             <DataGridTextColumn Header="继承" Binding="{Binding InheritanceStatus}" Width="70"/>
                             <DataGridTextColumn Header="类型" Binding="{Binding AccessControlType}" Width="65"/>
 
-                            <!-- 权限细分列 -->
                             <DataGridTextColumn Header="读取" Binding="{Binding ReadStr}" Width="50"/>
                             <DataGridTextColumn Header="写入" Binding="{Binding WriteStr}" Width="50"/>
                             <DataGridTextColumn Header="修改" Binding="{Binding ModifyStr}" Width="50"/>
@@ -169,7 +172,7 @@
         <!-- 底部状态栏 -->
         <StatusBar Grid.Row="1" Margin="0,5,0,0">
             <StatusBarItem>
-                <TextBlock Name="lblStatus" Text="就绪 (提示：默认隐藏系统账号；右键结果可复制或打开文件夹)" Foreground="Blue"/>
+                <TextBlock Name="lblStatus" Text="就绪 (提示：已默认开启智能去重模式，隐藏纯继承子目录)" Foreground="Blue"/>
             </StatusBarItem>
         </StatusBar>
     </Grid>
