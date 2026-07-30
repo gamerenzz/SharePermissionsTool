@@ -361,6 +361,8 @@ namespace SharePermissionsTool
                 }
                 catch { }
 
+                int countBefore = results.Count;
+
                 foreach (var folder in allFolders)
                 {
                     token.ThrowIfCancellationRequested();
@@ -374,7 +376,6 @@ namespace SharePermissionsTool
 
                         foreach (FileSystemAccessRule rule in rules)
                         {
-                            // 智能精简过滤：如果是子文件夹且权限完全是继承来的，且没勾选“包含纯继承”，则跳过！
                             if (!includePureInherited && !isRoot && rule.IsInherited)
                                 continue;
 
@@ -403,6 +404,21 @@ namespace SharePermissionsTool
                         }
                     }
                     catch { }
+                }
+
+                // 如果该共享根文件夹在过滤后没有任何普通用户记录，且没开启显示系统账号，则增加占位提示
+                if (results.Count == countBefore && !showSystem)
+                {
+                    results.Add(new PermissionResult
+                    {
+                        Account = "[仅系统/管理员默认权限]",
+                        ShareName = share.Name,
+                        Path = share.Path,
+                        PermType = "NTFS 权限",
+                        InheritanceStatus = "直接",
+                        AccessControlType = "-",
+                        Rights = "默认控制 (无单独用户权限)"
+                    });
                 }
             }
             return results;
@@ -462,6 +478,8 @@ namespace SharePermissionsTool
                 }
                 catch { }
 
+                int countBefore = results.Count;
+
                 foreach (var folder in allFolders)
                 {
                     token.ThrowIfCancellationRequested();
@@ -475,13 +493,11 @@ namespace SharePermissionsTool
 
                         foreach (FileSystemAccessRule rule in rules)
                         {
-                            // 智能精简过滤：如果是子文件夹且权限完全是继承来的，且没勾选“包含纯继承”，则跳过！
                             if (!includePureInherited && !isRoot && rule.IsInherited)
                                 continue;
 
                             string account = rule.IdentityReference.Value;
 
-                            // 默认过滤系统账号黑名单
                             if (!showSystem && IsSystemAccount(account))
                                 continue;
 
@@ -500,6 +516,21 @@ namespace SharePermissionsTool
                         }
                     }
                     catch { }
+                }
+
+                // 核心防护：如果勾选了该共享文件夹，但过滤掉系统账号后没有业务用户，则追加一条占位说明！
+                if (results.Count == countBefore && !showSystem)
+                {
+                    results.Add(new PermissionResult
+                    {
+                        Account = "[仅系统/管理员默认权限]",
+                        ShareName = share.Name,
+                        Path = share.Path,
+                        PermType = "NTFS 权限",
+                        InheritanceStatus = "直接",
+                        AccessControlType = "-",
+                        Rights = "默认控制 (无单独用户权限)"
+                    });
                 }
             }
             return results;
