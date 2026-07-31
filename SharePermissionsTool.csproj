@@ -7,12 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
 
-    <!-- 方案一：生成极轻量级的单文件 EXE (体积约 2MB) -->
+    <!-- 生成轻量级单文件 EXE (2MB 依赖框架模式) -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 
-    <!-- 自动请求管理员权限 -->
+    <!-- 请求管理员权限 -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
