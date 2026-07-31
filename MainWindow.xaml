@@ -1,7 +1,7 @@
 <Window x:Class="SharePermissionsTool.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Windows 共享与 NTFS 权限查询工具 (C# 高能版 v5.1)" Height="780" Width="1150" WindowStartupLocation="CenterScreen">
+        Title="Windows 共享与 NTFS 权限企业级审计工具 (C# 精简高能版 v6.1)" Height="780" Width="1180" WindowStartupLocation="CenterScreen">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
@@ -18,34 +18,40 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
+                    <!-- 工具栏 -->
                     <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
                         <TextBlock Text="本机/域名:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <TextBox Name="txtDomain" Width="120" IsReadOnly="True" Background="#F0F0F0" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                        <TextBox Name="txtDomain" Width="110" IsReadOnly="True" Background="#F0F0F0" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         
-                        <CheckBox Name="chkShowSystemTab1" Content="显示系统账号" VerticalAlignment="Center" Margin="0,0,15,0"
+                        <CheckBox Name="chkShowSystemTab1" Content="显示系统账号" VerticalAlignment="Center" Margin="0,0,12,0"
                                   ToolTip="勾选后将显示 SYSTEM, Administrators 等系统账号"/>
                         
-                        <CheckBox Name="chkIncludeInheritedTab1" Content="包含纯继承子文件夹" VerticalAlignment="Center" Margin="0,0,15,0"
-                                  ToolTip="取消勾选时，仅展示【共享根目录】与【单独设置了直接权限的子文件夹】，大幅去重"/>
+                        <CheckBox Name="chkIncludeInheritedTab1" Content="包含纯继承子目录" VerticalAlignment="Center" Margin="0,0,12,0"
+                                  ToolTip="取消勾选时，仅展示【共享根目录】与【单独设置了直接权限的子目录】，大幅去重"/>
 
-                        <Button Name="btnSearchByUser" Content=" 开始查询权限 " Padding="12,5" Margin="0,0,10,0" FontWeight="Bold" Click="BtnSearchByUser_Click"/>
-                        <Button Name="btnCancelUser" Content=" 停止 " Padding="10,5" Margin="0,0,10,0" IsEnabled="False" Click="BtnCancel_Click"/>
-                        <Button Name="btnExportUser" Content=" 导出结果 (CSV) " Padding="10,5" Click="BtnExportUser_Click"/>
+                        <CheckBox Name="chkCalcEffectiveTab1" Content="计算 SMB∩NTFS 交集" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                  ToolTip="开启后自动计算共享权限与NTFS权限的最终交集"/>
+
+                        <Button Name="btnSearchByUser" Content=" 开始查询权限 " Padding="10,5" Margin="0,0,8,0" FontWeight="Bold" Click="BtnSearchByUser_Click"/>
+                        <Button Name="btnCancelUser" Content=" 停止 " Padding="8,5" Margin="0,0,8,0" IsEnabled="False" Click="BtnCancel_Click"/>
+                        <Button Name="btnExportUserCsv" Content=" 导出 CSV " Padding="8,5" Margin="0,0,8,0" Click="BtnExportUserCsv_Click"/>
+                        <Button Name="btnExportUserHtml" Content=" 📊 HTML 报告 " Padding="8,5" Background="#E1F5FE" FontWeight="Bold" Click="BtnExportUserHtml_Click"/>
                     </StackPanel>
 
+                    <!-- 配置区 -->
                     <Grid Grid.Row="1" Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <GroupBox Header="1. 选择目标用户或组 (可多选)" Grid.Column="0" Margin="0,0,5,0" Padding="5">
+                        <GroupBox Header="1. 选择目标用户或组 (多选)" Grid.Column="0" Margin="0,0,5,0" Padding="5">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <ListBox Name="lstTargetUsers" Grid.Column="0" Height="110"/>
+                                <ListBox Name="lstTargetUsers" Grid.Column="0" Height="100"/>
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
                                     <Button Content="全选" Width="50" Margin="0,0,0,4" Click="BtnSelectAllUsers_Click"/>
                                     <Button Content="全不选" Width="50" Margin="0,0,0,4" Click="BtnClearAllUsers_Click"/>
@@ -60,7 +66,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <ListBox Name="lstUserShares" Grid.Column="0" Height="110"/>
+                                <ListBox Name="lstUserShares" Grid.Column="0" Height="100"/>
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
                                     <Button Content="全选" Width="50" Margin="0,0,0,4" Click="BtnSelectAllUserShares_Click"/>
                                     <Button Content="全不选" Width="50" Click="BtnClearAllUserShares_Click"/>
@@ -69,6 +75,7 @@
                         </GroupBox>
                     </Grid>
 
+                    <!-- 表格结果 -->
                     <DataGrid Name="dgUserResults" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
                               GridLinesVisibility="All" SelectionMode="Extended" SelectionUnit="FullRow"
                               ClipboardCopyMode="ExcludeHeader" MouseDoubleClick="DataGrid_MouseDoubleClick"
@@ -82,20 +89,21 @@
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="匹配账号" Binding="{Binding Account}" Width="160"/>
-                            <DataGridTextColumn Header="共享根名称" Binding="{Binding ShareName}" Width="100"/>
+                            <DataGridTextColumn Header="安全风险" Binding="{Binding RiskBadge}" Width="80"/>
+                            <DataGridTextColumn Header="匹配账号" Binding="{Binding Account}" Width="170"/>
+                            <DataGridTextColumn Header="共享根" Binding="{Binding ShareName}" Width="90"/>
                             <DataGridTextColumn Header="实际文件夹路径" Binding="{Binding Path}" Width="240"/>
-                            <DataGridTextColumn Header="来源" Binding="{Binding PermType}" Width="80"/>
-                            <DataGridTextColumn Header="继承" Binding="{Binding InheritanceStatus}" Width="70"/>
-                            <DataGridTextColumn Header="类型" Binding="{Binding AccessControlType}" Width="65"/>
+                            <DataGridTextColumn Header="来源" Binding="{Binding PermType}" Width="90"/>
+                            <DataGridTextColumn Header="继承" Binding="{Binding InheritanceStatus}" Width="65"/>
+                            <DataGridTextColumn Header="控制" Binding="{Binding AccessControlType}" Width="65"/>
                             
-                            <DataGridTextColumn Header="读取" Binding="{Binding ReadStr}" Width="50"/>
-                            <DataGridTextColumn Header="写入" Binding="{Binding WriteStr}" Width="50"/>
-                            <DataGridTextColumn Header="修改" Binding="{Binding ModifyStr}" Width="50"/>
-                            <DataGridTextColumn Header="删除" Binding="{Binding DeleteStr}" Width="50"/>
-                            <DataGridTextColumn Header="全控" Binding="{Binding FullControlStr}" Width="50"/>
-                            
-                            <DataGridTextColumn Header="原始权限描述" Binding="{Binding Rights}" Width="*"/>
+                            <DataGridTextColumn Header="读取" Binding="{Binding ReadStr}" Width="45"/>
+                            <DataGridTextColumn Header="写入" Binding="{Binding WriteStr}" Width="45"/>
+                            <DataGridTextColumn Header="修改" Binding="{Binding ModifyStr}" Width="45"/>
+                            <DataGridTextColumn Header="删除" Binding="{Binding DeleteStr}" Width="45"/>
+                            <DataGridTextColumn Header="全控" Binding="{Binding FullControlStr}" Width="45"/>
+
+                            <DataGridTextColumn Header="有效权限/风险描述" Binding="{Binding RightsDescription}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -110,19 +118,24 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
+                    <!-- 工具栏 -->
                     <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
-                        <CheckBox Name="chkShowSystemTab2" Content="显示系统账号" VerticalAlignment="Center" Margin="0,0,15,0"
+                        <CheckBox Name="chkShowSystemTab2" Content="显示系统账号" VerticalAlignment="Center" Margin="0,0,12,0"
                                   ToolTip="勾选后将显示 SYSTEM, Administrators 等系统账号"/>
                         
-                        <CheckBox Name="chkIncludeInheritedTab2" Content="包含纯继承子文件夹" VerticalAlignment="Center" Margin="0,0,15,0"
-                                  ToolTip="取消勾选时，仅展示【共享根目录】与【单独设置了直接权限的子文件夹】，大幅去重"/>
+                        <CheckBox Name="chkIncludeInheritedTab2" Content="包含纯继承子目录" VerticalAlignment="Center" Margin="0,0,12,0"
+                                  ToolTip="取消勾选时，仅展示【共享根目录】与【单独设置了直接权限的子目录】，大幅去重"/>
 
-                        <Button Name="btnSearchByShare" Content=" 查询共享的用户 " Padding="12,5" Margin="0,0,10,0" FontWeight="Bold" Click="BtnSearchByShare_Click"/>
-                        <Button Name="btnCancelShare" Content=" 停止 " Padding="10,5" Margin="0,0,10,0" IsEnabled="False" Click="BtnCancel_Click"/>
-                        <Button Name="btnExportShare" Content=" 导出结果 (CSV) " Padding="10,5" Click="BtnExportShare_Click"/>
+                        <CheckBox Name="chkCalcEffectiveTab2" Content="计算 SMB∩NTFS 交集" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                  ToolTip="开启后自动计算共享权限与NTFS权限的最终交集"/>
+
+                        <Button Name="btnSearchByShare" Content=" 查询共享的用户 " Padding="10,5" Margin="0,0,8,0" FontWeight="Bold" Click="BtnSearchByShare_Click"/>
+                        <Button Name="btnCancelShare" Content=" 停止 " Padding="8,5" Margin="0,0,8,0" IsEnabled="False" Click="BtnCancel_Click"/>
+                        <Button Name="btnExportShareCsv" Content=" 导出 CSV " Padding="8,5" Margin="0,0,8,0" Click="BtnExportShareCsv_Click"/>
+                        <Button Name="btnExportShareHtml" Content=" 📊 HTML 报告 " Padding="8,5" Background="#E1F5FE" FontWeight="Bold" Click="BtnExportShareHtml_Click"/>
                     </StackPanel>
 
-                    <GroupBox Header="选择目标共享文件夹 (可多选)" Grid.Row="1" Margin="0,0,0,10" Padding="5">
+                    <GroupBox Header="选择目标共享文件夹 (多选)" Grid.Row="1" Margin="0,0,0,10" Padding="5">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -150,19 +163,20 @@
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                         <DataGrid.Columns>
+                            <DataGridTextColumn Header="安全风险" Binding="{Binding RiskBadge}" Width="80"/>
                             <DataGridTextColumn Header="文件夹路径" Binding="{Binding Path}" Width="260"/>
-                            <DataGridTextColumn Header="用户/组 账号" Binding="{Binding Account}" Width="200"/>
-                            <DataGridTextColumn Header="来源" Binding="{Binding PermType}" Width="80"/>
-                            <DataGridTextColumn Header="继承" Binding="{Binding InheritanceStatus}" Width="70"/>
-                            <DataGridTextColumn Header="类型" Binding="{Binding AccessControlType}" Width="65"/>
+                            <DataGridTextColumn Header="用户/组 账号" Binding="{Binding Account}" Width="190"/>
+                            <DataGridTextColumn Header="来源" Binding="{Binding PermType}" Width="90"/>
+                            <DataGridTextColumn Header="继承" Binding="{Binding InheritanceStatus}" Width="65"/>
+                            <DataGridTextColumn Header="控制" Binding="{Binding AccessControlType}" Width="65"/>
 
-                            <DataGridTextColumn Header="读取" Binding="{Binding ReadStr}" Width="50"/>
-                            <DataGridTextColumn Header="写入" Binding="{Binding WriteStr}" Width="50"/>
-                            <DataGridTextColumn Header="修改" Binding="{Binding ModifyStr}" Width="50"/>
-                            <DataGridTextColumn Header="删除" Binding="{Binding DeleteStr}" Width="50"/>
-                            <DataGridTextColumn Header="全控" Binding="{Binding FullControlStr}" Width="50"/>
+                            <DataGridTextColumn Header="读取" Binding="{Binding ReadStr}" Width="45"/>
+                            <DataGridTextColumn Header="写入" Binding="{Binding WriteStr}" Width="45"/>
+                            <DataGridTextColumn Header="修改" Binding="{Binding ModifyStr}" Width="45"/>
+                            <DataGridTextColumn Header="删除" Binding="{Binding DeleteStr}" Width="45"/>
+                            <DataGridTextColumn Header="全控" Binding="{Binding FullControlStr}" Width="45"/>
 
-                            <DataGridTextColumn Header="原始权限描述" Binding="{Binding Rights}" Width="*"/>
+                            <DataGridTextColumn Header="有效权限/风险描述" Binding="{Binding RightsDescription}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -172,7 +186,7 @@
         <!-- 底部状态栏 -->
         <StatusBar Grid.Row="1" Margin="0,5,0,0">
             <StatusBarItem>
-                <TextBlock Name="lblStatus" Text="就绪 (提示：已默认开启智能去重模式，隐藏纯继承子目录)" Foreground="Blue"/>
+                <TextBlock Name="lblStatus" Text="就绪 (C# v6.1 精简高能版)" Foreground="Blue"/>
             </StatusBarItem>
         </StatusBar>
     </Grid>
